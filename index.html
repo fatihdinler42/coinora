@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Coinora</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #020617;
+  color: white;
+}
+
+header {
+  text-align: center;
+  padding: 25px;
+  background: linear-gradient(90deg,#020617,#0f172a);
+  border-bottom: 1px solid rgba(255,215,0,0.2);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+input {
+  width: 90%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  margin: 15px auto;
+  display: block;
+  background: #1e293b;
+  color: white;
+}
+
+input:focus {
+  outline: none;
+  box-shadow: 0 0 10px gold;
+}
+
+/* COIN */
+.coin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px;
+  padding: 14px;
+  background: #1e293b;
+  border-radius: 14px;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.coin:hover {
+  transform: scale(1.02);
+  background: #334155;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.active {
+  border: 2px solid gold;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coin img {
+  width: 30px;
+}
+
+.symbol {
+  font-weight: bold;
+}
+
+.name {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.price {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.up {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+.down {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* CARD */
+.card {
+  margin: 20px;
+  padding: 20px;
+  background: #1e293b;
+  border-radius: 15px;
+  text-align: center;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="logo.png" style="width:180px;">
+</header>
+
+<input type="text" id="search" placeholder="Coin ara..." onkeyup="filterCoins()">
+
+<div id="coin-list"></div>
+
+<div class="card">
+  <h2 id="coin-name">BTC</h2>
+</div>
+
+<div style="margin:20px;">
+<div id="tradingview_chart"></div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+
+<script>
+
+let coins = [];
+let currentSymbol = "BINANCE:BTCUSDT";
+
+/* API */
+async function loadCoins() {
+  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1");
+  const data = await res.json();
+
+  coins = data;
+  render(coins);
+}
+
+/* RENDER */
+function render(data) {
+  let html = "";
+
+  data.forEach(c => {
+
+    const changeClass = c.price_change_percentage_24h > 0 ? "up" : "down";
+    const active = currentSymbol.includes(c.symbol.toUpperCase()) ? "active" : "";
+
+    html += `
+    <div class="coin ${active}" onclick="selectCoin('${c.symbol}')">
+
+      <div class="left">
+        <img src="${c.image}">
+        <div>
+          <div class="symbol">${c.symbol.toUpperCase()}</div>
+          <div class="name">${c.name}</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="price">$${c.current_price}</div>
+        <div class="${changeClass}">
+          ${c.price_change_percentage_24h.toFixed(2)}%
+        </div>
+      </div>
+
+    </div>`;
+  });
+
+  document.getElementById("coin-list").innerHTML = html;
+}
+
+/* SEARCH */
+function filterCoins() {
+  const s = document.getElementById("search").value.toLowerCase();
+  const filtered = coins.filter(c => c.symbol.toLowerCase().includes(s));
+  render(filtered);
+}
+
+/* SELECT */
+function selectCoin(symbol) {
+  currentSymbol = "BINANCE:" + symbol.toUpperCase() + "USDT";
+  document.getElementById("coin-name").innerText = symbol.toUpperCase();
+  render(coins);
+  loadChart();
+}
+
+/* CHART */
+function loadChart() {
+  document.getElementById("tradingview_chart").innerHTML = "";
+
+  new TradingView.widget({
+    width: "100%",
+    height: 500,
+    symbol: currentSymbol,
+    theme: "dark",
+    container_id: "tradingview_chart"
+  });
+}
+
+/* START */
+loadCoins();
+loadChart();
+
+</script>
+
+</body>
+</html>
