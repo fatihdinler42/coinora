@@ -5,89 +5,41 @@
 <title>Coinora</title>
 
 <style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:#020617;
-  color:white;
-}
+body{margin:0;background:#020617;color:white;font-family:Arial}
 
 /* LOGO */
-header {
-  text-align:center;
-  padding:20px;
-}
-.logo {
-  width:170px;
-  filter: drop-shadow(0 0 10px gold);
-}
+header{text-align:center;padding:20px}
+.logo{width:160px;filter:drop-shadow(0 0 10px gold)}
 
-/* KAYAN YAZI */
-.ticker {
-  overflow:hidden;
-  border-top:1px solid gold;
-  border-bottom:1px solid gold;
-  background:#000814;
-}
-.ticker-track {
-  display:flex;
-  gap:40px;
-  animation:scroll 30s linear infinite;
-}
-@keyframes scroll {
-  0% { transform:translateX(0); }
-  100% { transform:translateX(-50%); }
-}
-.coin {
-  display:flex;
-  align-items:center;
-  cursor:pointer;
-  font-weight:bold;
-}
-.coin img {
-  width:22px;
-  margin-right:8px;
-}
+/* TICKER */
+.ticker{overflow:hidden;border-top:1px solid gold;border-bottom:1px solid gold}
+.ticker-track{display:flex;gap:40px;animation:scroll 30s linear infinite}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.coin{display:flex;align-items:center;cursor:pointer;font-weight:bold}
+.coin img{width:22px;margin-right:8px}
 
-/* ARAMA */
-input {
-  width:90%;
-  margin:20px auto;
-  display:block;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  background:#1e293b;
-  color:white;
-}
+/* INPUT */
+input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;border:none;background:#1e293b;color:white}
 
 /* CHART */
-#tradingview_chart {
-  height:500px;
-}
+#tradingview_chart{height:500px}
 
-/* YORUM */
-.comment-box {
-  max-width:600px;
-  margin:40px auto;
-}
-button {
-  padding:10px;
-  background:gold;
-  border:none;
-  border-radius:10px;
-}
+/* COMMENTS */
+.comment-box{max-width:600px;margin:40px auto}
+.comment{border-bottom:1px solid #333;padding:10px}
+.name{color:gold;font-weight:bold}
+.actions span{margin-right:10px;cursor:pointer}
 </style>
 </head>
 
 <body>
 
 <header>
-  <img src="logo.png" class="logo">
+<img src="logo.png" class="logo">
 </header>
 
 <div class="ticker">
-  <div class="ticker-track" id="ticker"></div>
+<div class="ticker-track" id="ticker"></div>
 </div>
 
 <input placeholder="Coin ara..." onkeyup="searchCoin(this.value)">
@@ -95,10 +47,14 @@ button {
 <div id="tradingview_chart"></div>
 
 <div class="comment-box">
-  <h2 id="coinTitle">BTC Yorumlar</h2>
-  <input id="commentInput" placeholder="Yorum yaz...">
-  <button onclick="addComment()">Gönder</button>
-  <div id="commentsList"></div>
+<h2 id="coinTitle">BTC Yorumlar</h2>
+
+<input id="username" placeholder="İsmin">
+<input id="commentInput" placeholder="Yorum yaz...">
+
+<button onclick="addComment()">Gönder</button>
+
+<div id="commentsList"></div>
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
@@ -107,71 +63,54 @@ button {
 let coins=[];
 let currentSymbol="BTCUSDT";
 
-// COIN ÇEK
 async function loadCoins(){
-  const binance = await fetch("https://api.binance.com/api/v3/ticker/24hr").then(r=>r.json());
-  const cg = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd").then(r=>r.json());
+const binance=await fetch("https://api.binance.com/api/v3/ticker/24hr").then(r=>r.json());
+const cg=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd").then(r=>r.json());
 
-  coins = binance.slice(0,60).map(c=>{
-    const symbol = c.symbol.replace("USDT","");
-    const found = cg.find(x=>x.symbol.toUpperCase()==symbol);
-
-    return {
-      symbol:c.symbol,
-      price:c.lastPrice,
-      change:c.priceChangePercent,
-      icon: found ? found.image : ""
-    };
-  });
-
-  renderTicker();
+coins=binance.slice(0,60).map(c=>{
+const symbol=c.symbol.replace("USDT","");
+const found=cg.find(x=>x.symbol.toUpperCase()==symbol);
+return {symbol:c.symbol,price:c.lastPrice,change:c.priceChangePercent,icon:found?found.image:""};
+});
+renderTicker();
 }
 
-// KAYAN YAZI
 function renderTicker(){
-  const ticker=document.getElementById("ticker");
+const ticker=document.getElementById("ticker");
 
-  const html = coins.map(c=>{
-    const color = parseFloat(c.change) >= 0 ? "lime" : "red";
+const html=coins.map(c=>{
+const color=parseFloat(c.change)>=0?"lime":"red";
+return `<div class="coin" onclick="selectCoin('${c.symbol}')">
+<img src="${c.icon}">
+<span style="color:${color}">${c.symbol} $${parseFloat(c.price).toFixed(2)}</span>
+</div>`;
+}).join("");
 
-    return `
-    <div class="coin" onclick="selectCoin('${c.symbol}')">
-      <img src="${c.icon}">
-      <span style="color:${color}">
-        ${c.symbol} $${parseFloat(c.price).toFixed(2)}
-      </span>
-    </div>
-    `;
-  }).join("");
-
-  ticker.innerHTML = html + html;
+ticker.innerHTML=html+html;
 }
 
-// COIN SEÇ
 function selectCoin(symbol){
-  currentSymbol = symbol;
-  loadChart();
-  loadComments();
-  document.getElementById("coinTitle").innerText = symbol + " Yorumlar";
+currentSymbol=symbol;
+loadChart();
+loadComments();
+document.getElementById("coinTitle").innerText=symbol+" Yorumlar";
 }
 
-// ARAMA
 function searchCoin(val){
-  val = val.toUpperCase();
-  const coin = coins.find(c=>c.symbol.includes(val));
-  if(coin) selectCoin(coin.symbol);
+val=val.toUpperCase();
+const coin=coins.find(c=>c.symbol.includes(val));
+if(coin) selectCoin(coin.symbol);
 }
 
-// GRAFİK
 function loadChart(){
-  document.getElementById("tradingview_chart").innerHTML="";
-  new TradingView.widget({
-    width:"100%",
-    height:500,
-    symbol:"BINANCE:"+currentSymbol,
-    theme:"dark",
-    container_id:"tradingview_chart"
-  });
+document.getElementById("tradingview_chart").innerHTML="";
+new TradingView.widget({
+width:"100%",
+height:500,
+symbol:"BINANCE:"+currentSymbol,
+theme:"dark",
+container_id:"tradingview_chart"
+});
 }
 
 loadCoins();
@@ -181,45 +120,70 @@ loadChart();
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA2G8j5qx5z3NZTU86TcDXjAcD0aazwq8c",
-  authDomain: "coinora-ac7fb.firebaseapp.com",
-  projectId: "coinora-ac7fb",
+apiKey: "AIzaSyA2G8j5qx5z3NZTU86TcDXjAcD0aazwq8c",
+authDomain: "coinora-ac7fb.firebaseapp.com",
+projectId: "coinora-ac7fb"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// YORUM EKLE
 window.addComment = async function(){
-  const input = document.getElementById("commentInput");
-  if(!input.value) return;
+const user=document.getElementById("username").value;
+const text=document.getElementById("commentInput").value;
 
-  await addDoc(collection(db,"comments"),{
-    text: input.value,
-    coin: window.currentSymbol
-  });
+if(!user || !text) return;
 
-  input.value="";
-  loadComments();
+await addDoc(collection(db,"comments"),{
+user:user,
+text:text,
+coin:window.currentSymbol,
+likes:0,
+dislikes:0
+});
+
+document.getElementById("commentInput").value="";
+loadComments();
 };
 
-// YORUMLAR
+window.likeComment = async function(id,likes){
+const ref=doc(db,"comments",id);
+await updateDoc(ref,{likes:likes+1});
+loadComments();
+};
+
+window.dislikeComment = async function(id,dislikes){
+const ref=doc(db,"comments",id);
+await updateDoc(ref,{dislikes:dislikes+1});
+loadComments();
+};
+
 window.loadComments = async function(){
-  const list=document.getElementById("commentsList");
-  list.innerHTML="";
+const list=document.getElementById("commentsList");
+list.innerHTML="";
 
-  const snap = await getDocs(collection(db,"comments"));
+const snap=await getDocs(collection(db,"comments"));
 
-  snap.forEach(doc=>{
-    const d=doc.data();
-    if(d.coin === window.currentSymbol){
-      list.innerHTML += `<div style="padding:10px;border-bottom:1px solid #333">${d.text}</div>`;
-    }
-  });
+snap.forEach(docSnap=>{
+const d=docSnap.data();
+
+if(d.coin===window.currentSymbol){
+list.innerHTML+=`
+<div class="comment">
+<div class="name">${d.user}</div>
+<div>${d.text}</div>
+<div class="actions">
+<span onclick="likeComment('${docSnap.id}',${d.likes})">👍 ${d.likes}</span>
+<span onclick="dislikeComment('${docSnap.id}',${d.dislikes})">👎 ${d.dislikes}</span>
+</div>
+</div>
+`;
 }
+});
+};
 
 loadComments();
 </script>
