@@ -116,7 +116,59 @@ async function loadCoins(){
 let data;
 
 try{
+const res=await async function loadCoins(){
+
+let data=[];
+
+try{
 const res=await fetch("https://api.binance.com/api/v3/ticker/price");
+data=await res.json();
+
+if(!data || data.length===0) throw "binance boş";
+
+}catch{
+
+console.log("binance patladı → coingecko geçiliyor");
+
+const res=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd");
+const cg=await res.json();
+
+data=cg.map(c=>({
+symbol:c.symbol.toUpperCase()+"USDT",
+price:c.current_price
+}));
+}
+
+let ticker="";
+let coins="";
+
+data.slice(0,30).forEach(c=>{
+
+const green=Math.random()>0.5;
+
+ticker+=`
+<span style="color:${green?"lime":"red"}">
+${c.symbol} ${Number(c.price).toFixed(2)}
+</span>
+`;
+
+coins+=`
+<div class="coin" onclick="changeCoin('${c.symbol}')">
+
+<img src="https://assets.coincap.io/assets/icons/${c.symbol.slice(0,3).toLowerCase()}@2x.png"
+onerror="this.src='https://via.placeholder.com/20'">
+
+${c.symbol}
+</div>
+`;
+});
+
+// 🔥 KAYAN YAZI FIX
+document.getElementById("ticker").innerHTML =
+'<div class="ticker-inner">'+ticker+'</div>';
+
+document.getElementById("coinList").innerHTML=coins;
+}
 data=await res.json();
 }catch{
 const res=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd");
