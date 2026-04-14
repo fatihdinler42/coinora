@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Coinora</title>
@@ -13,20 +13,15 @@ body {
   color: white;
 }
 
+/* HEADER */
 header {
   text-align: center;
-  padding: 20px;
+  padding: 15px;
 }
 
 .logo {
-  width: 180px;
-  transition: 0.3s;
+  width: 140px;
   filter: drop-shadow(0 0 10px gold);
-}
-
-.logo:hover {
-  transform: scale(1.08);
-  filter: drop-shadow(0 0 25px gold);
 }
 
 /* TICKER */
@@ -40,8 +35,8 @@ header {
   display: inline-block;
   white-space: nowrap;
   animation: scroll 80s linear infinite;
-  padding: 10px;
-  font-weight: bold;
+  padding: 8px;
+  font-size: 14px;
   color: gold;
 }
 
@@ -50,35 +45,54 @@ header {
   100% { transform: translateX(-100%); }
 }
 
-/* COINS */
+/* SEARCH */
+input {
+  width: 90%;
+  margin: 10px auto;
+  display: block;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: #1e293b;
+  color: white;
+}
+
+/* COIN LIST */
 .coin-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  padding: 15px;
+  padding: 10px;
 }
 
 .coin {
   background: #1e293b;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 15px;
+  border-radius: 15px;
   text-align: center;
-  cursor: pointer;
+  transition: 0.2s;
 }
 
-.coin:hover {
+.coin:active {
+  transform: scale(0.95);
   background: #334155;
 }
 
-input {
-  width: 90%;
-  padding: 12px;
-  margin: 15px auto;
-  display: block;
-  border-radius: 10px;
-  border: none;
-  background: #1e293b;
-  color: white;
+.coin img {
+  width: 35px;
+}
+
+.price {
+  font-size: 16px;
+  margin-top: 5px;
+}
+
+.up { color: lime; }
+.down { color: red; }
+
+/* CHART */
+#tradingview_chart {
+  margin: 10px;
 }
 </style>
 </head>
@@ -90,7 +104,7 @@ input {
 </header>
 
 <div class="ticker">
-  <div class="ticker-content" id="ticker">Yükleniyor...</div>
+  <div class="ticker-content" id="ticker"></div>
 </div>
 
 <input type="text" placeholder="Coin ara..." onkeyup="filterCoins(this.value)">
@@ -110,31 +124,39 @@ function loadChart() {
   document.getElementById("tradingview_chart").innerHTML = "";
   new TradingView.widget({
     width: "100%",
-    height: 500,
+    height: 400,
     symbol: currentSymbol,
     theme: "dark",
     container_id: "tradingview_chart"
   });
 }
 
-/* COIN LIST */
+/* COINS */
 async function loadCoins() {
   const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
   const data = await res.json();
 
   allCoins = data;
+  renderCoins(data);
+}
 
+function renderCoins(coins) {
   const container = document.getElementById("coins");
   container.innerHTML = "";
 
-  data.forEach(c => {
+  coins.forEach(c => {
+    const change = c.price_change_percentage_24h;
+    const cls = change >= 0 ? "up" : "down";
+
     const el = document.createElement("div");
     el.className = "coin";
 
     el.innerHTML = `
-      <img src="${c.image}" width="30"><br>
-      ${c.symbol.toUpperCase()}<br>
-      $${c.current_price}
+      <img src="${c.image}">
+      <div>${c.symbol.toUpperCase()}</div>
+      <div class="price $${cls}">
+        $${c.current_price}
+      </div>
     `;
 
     el.onclick = () => {
@@ -152,52 +174,30 @@ function filterCoins(val) {
   const filtered = allCoins.filter(c =>
     c.symbol.toLowerCase().includes(val)
   );
-  render(filtered);
+  renderCoins(filtered);
 }
 
-function render(coins) {
-  const container = document.getElementById("coins");
-  container.innerHTML = "";
-  coins.forEach(c => {
-    const el = document.createElement("div");
-    el.className = "coin";
-    el.innerHTML = `${c.symbol.toUpperCase()}<br>$${c.current_price}`;
-    el.onclick = () => {
-      currentSymbol = "BINANCE:" + c.symbol.toUpperCase() + "USDT";
-      loadChart();
-    };
-    container.appendChild(el);
-  });
-}
-
-/* TICKER (FULL + TEKRARLI) */
+/* TICKER */
 async function loadTicker() {
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
-    const data = await res.json();
+  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
+  const data = await res.json();
 
-    let text = "";
+  let text = "";
 
-    data.forEach(c => {
-      const color = c.price_change_percentage_24h >= 0 ? "lime" : "red";
+  data.forEach(c => {
+    const color = c.price_change_percentage_24h >= 0 ? "lime" : "red";
 
-      text += `
-        <span style="margin-right:40px;">
-          ${c.symbol.toUpperCase()} $${c.current_price}
-          <span style="color:${color}">
-            (${c.price_change_percentage_24h.toFixed(2)}%)
-          </span>
+    text += `
+      <span style="margin-right:30px;">
+        ${c.symbol.toUpperCase()} $${c.current_price}
+        <span style="color:${color}">
+          (${c.price_change_percentage_24h.toFixed(1)}%)
         </span>
-      `;
-    });
+      </span>
+    `;
+  });
 
-    // 💣 boşluk kalmaması için 3 kat
-    document.getElementById("ticker").innerHTML = text.repeat(3);
-
-  } catch {
-    document.getElementById("ticker").innerHTML =
-      "BTC $74,500 • ETH $3,800 • SOL $180 • XRP $0.62 • DOGE $0.15".repeat(5);
-  }
+  document.getElementById("ticker").innerHTML = text.repeat(3);
 }
 
 /* START */
