@@ -19,7 +19,7 @@ header{text-align:center;padding:20px}
 /* COINS */
 .coins{display:flex;overflow-x:auto;padding:10px}
 .coin{background:#111827;margin:5px;padding:8px;border-radius:10px;cursor:pointer}
-.coin:hover{background:#1f2937}
+.coin img{width:20px;margin-right:5px}
 
 /* INPUT */
 input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;border:none;background:#1e293b;color:white}
@@ -28,6 +28,11 @@ input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;b
 .comment{background:#111827;margin:10px;padding:10px;border-radius:10px}
 .name{color:gold}
 .actions span{margin-right:10px;cursor:pointer}
+
+/* NEWS */
+.news{padding:20px}
+.news-item{background:#111827;margin:10px;padding:10px;border-radius:10px}
+.news-item a{color:gold;text-decoration:none}
 </style>
 </head>
 
@@ -37,13 +42,15 @@ input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;b
 <img src="logo.png" class="logo">
 </header>
 
-<div class="ticker" id="ticker">Yükleniyor...</div>
-
+<div class="ticker" id="ticker"></div>
 <div class="coins" id="coinList"></div>
 
-<input placeholder="Coin ara...">
-
 <div id="chart"></div>
+
+<div class="news">
+<h2 id="newsTitle">Haberler</h2>
+<div id="newsList"></div>
+</div>
 
 <div style="padding:20px">
 <h2 id="title">Yorumlar</h2>
@@ -57,12 +64,24 @@ input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;b
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
-<script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "BURAYA SENİN",
+authDomain: "BURAYA",
+projectId: "BURAYA"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 let currentSymbol="BTCUSDT";
 
-/* KAYAN YAZI + COIN */
+/* COIN API */
 async function loadCoins(){
-try{
 const res=await fetch("https://api.binance.com/api/v3/ticker/price");
 const data=await res.json();
 
@@ -74,19 +93,38 @@ const color=Math.random()>0.5?"lime":"red";
 
 ticker+=`<span style="color:${color}">${c.symbol} ${parseFloat(c.price).toFixed(2)}</span>`;
 
-coins+=`<div class="coin" onclick="changeCoin('${c.symbol}')">${c.symbol}</div>`;
+coins+=`
+<div class="coin" onclick="changeCoin('${c.symbol}')">
+<img src="https://cryptoicons.org/api/icon/${c.symbol.slice(0,3).toLowerCase()}/32">
+${c.symbol}
+</div>`;
 });
 
 document.getElementById("ticker").innerHTML=ticker;
 document.getElementById("coinList").innerHTML=coins;
-
-}catch(e){
-document.getElementById("ticker").innerHTML="API hata verdi";
-}
 }
 
-/* COIN DEĞİŞ */
-function changeCoin(symbol){
+/* HABER API */
+async function loadNews(symbol){
+const coin=symbol.replace("USDT","");
+
+const res=await fetch(`https://min-api.cryptocompare.com/data/v2/news/?categories=${coin}`);
+const data=await res.json();
+
+let html="";
+
+data.Data.slice(0,5).forEach(n=>{
+html+=`
+<div class="news-item">
+<a href="${n.url}" target="_blank">${n.title}</a>
+</div>`;
+});
+
+document.getElementById("newsList").innerHTML=html;
+}
+
+/* COIN CHANGE */
+window.changeCoin=function(symbol){
 currentSymbol=symbol;
 
 document.getElementById("chart").innerHTML="";
@@ -100,23 +138,22 @@ theme:"dark"
 });
 
 document.getElementById("title").innerText=symbol+" Yorumlar";
+document.getElementById("newsTitle").innerText=symbol+" Haberler";
 
 loadComments();
-}
+loadNews(symbol);
+};
 
-/* FAKE COMMENT SYSTEM (TEST İÇİN) */
-let comments=[];
-
-function addComment(){
-const user=document.getElementById("username").value || "Anonim";
+/* ADD COMMENT */
+window.addComment=async function(){
+const user=document.getElementById("username").value;
 const text=document.getElementById("commentInput").value;
 
 if(!text)return;
 
-comments.push({
-id:Date.now(),
-user,
-text,
+await addDoc(collection(db,"comments"),{
+user:user||"Anonim",
+text:text,
 coin:currentSymbol,
 likes:0,
 dislikes:0
@@ -124,13 +161,29 @@ dislikes:0
 
 document.getElementById("commentInput").value="";
 loadComments();
-}
+};
 
-function loadComments(){
+/* LOAD COMMENTS */
+window.loadComments=async function(){
 const list=document.getElementById("commentsList");
 list.innerHTML="";
 
-let arr=comments.filter(c=>c.coin===currentSymbol);
+const snap=await getDocs(collection(db,"comments"));
+
+let arr=[];
+
+snap.forEach(docSnap=>{
+const d=docSnap.data();
+
+if((d.coin||"BTCUSDT")==currentSymbol){
+arr.push({
+id:docSnap.id,
+...d,
+likes:d.likes||0,
+dislikes:d.dislikes||0
+});
+}
+});
 
 arr.sort((a,b)=>b.likes-a.likes);
 
@@ -140,28 +193,30 @@ list.innerHTML+=`
 <div class="name">${d.user}</div>
 <div>${d.text}</div>
 <div class="actions">
-<span onclick="like(${d.id})">👍 ${d.likes}</span>
-<span onclick="dislike(${d.id})">👎 ${d.dislikes}</span>
+<span onclick="like('${d.id}',${d.likes})">👍 ${d.likes}</span>
+<span onclick="dislike('${d.id}',${d.dislikes})">👎 ${d.dislikes}</span>
 </div>
 </div>`;
 });
-}
+};
 
-function like(id){
-const c=comments.find(x=>x.id==id);
-c.likes++;
+/* LIKE */
+window.like=async function(id,likes){
+const ref=doc(db,"comments",id);
+await updateDoc(ref,{likes:(likes||0)+1});
 loadComments();
-}
+};
 
-function dislike(id){
-const c=comments.find(x=>x.id==id);
-c.dislikes++;
+window.dislike=async function(id,dislikes){
+const ref=doc(db,"comments",id);
+await updateDoc(ref,{dislikes:(dislikes||0)+1});
 loadComments();
-}
+};
 
 /* START */
 loadCoins();
 changeCoin("BTCUSDT");
+
 </script>
 
 </body>
