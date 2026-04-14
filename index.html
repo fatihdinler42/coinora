@@ -2,97 +2,76 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Coinora</title>
 
 <style>
 body {
-  margin: 0;
-  font-family: Arial;
-  background: #020617;
-  color: white;
+  margin:0;
+  font-family:Arial;
+  background:#020617;
+  color:white;
 }
 
-/* HEADER */
+/* LOGO */
 header {
-  text-align: center;
-  padding: 15px;
+  text-align:center;
+  padding:20px;
 }
-
 .logo {
-  width: 140px;
+  width:180px;
+  transition:0.3s;
   filter: drop-shadow(0 0 10px gold);
 }
+.logo:hover {
+  transform:scale(1.1);
+  filter: drop-shadow(0 0 25px gold);
+}
 
-/* TICKER */
+/* KAYAN YAZI */
 .ticker {
-  overflow: hidden;
-  border-top: 1px solid gold;
-  border-bottom: 1px solid gold;
+  overflow:hidden;
+  white-space:nowrap;
+  border-top:1px solid gold;
+  border-bottom:1px solid gold;
 }
-
 .ticker-content {
-  display: inline-block;
-  white-space: nowrap;
-  animation: scroll 80s linear infinite;
-  padding: 8px;
-  font-size: 14px;
-  color: gold;
+  display:inline-block;
+  padding-left:100%;
+  animation: ticker 25s linear infinite;
 }
-
-@keyframes scroll {
-  0% { transform: translateX(100%); }
+@keyframes ticker {
+  0% { transform: translateX(0%); }
   100% { transform: translateX(-100%); }
 }
 
-/* SEARCH */
+/* INPUT */
 input {
-  width: 90%;
-  margin: 10px auto;
-  display: block;
-  padding: 12px;
-  border-radius: 12px;
-  border: none;
-  background: #1e293b;
-  color: white;
+  width:90%;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  margin:20px auto;
+  display:block;
+  background:#1e293b;
+  color:white;
 }
-
-/* COIN LIST */
-.coin-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 10px;
-}
-
-.coin {
-  background: #1e293b;
-  padding: 15px;
-  border-radius: 15px;
-  text-align: center;
-  transition: 0.2s;
-}
-
-.coin:active {
-  transform: scale(0.95);
-  background: #334155;
-}
-
-.coin img {
-  width: 35px;
-}
-
-.price {
-  font-size: 16px;
-  margin-top: 5px;
-}
-
-.up { color: lime; }
-.down { color: red; }
 
 /* CHART */
 #tradingview_chart {
-  margin: 10px;
+  height:500px;
+  margin-top:20px;
+}
+
+/* YORUM */
+.comment-box {
+  max-width:600px;
+  margin:40px auto;
+}
+button {
+  padding:10px 20px;
+  background:gold;
+  border:none;
+  border-radius:10px;
 }
 </style>
 </head>
@@ -100,112 +79,121 @@ input {
 <body>
 
 <header>
-  <img src="logo.png" class="logo">
+<img src="logo.png" class="logo">
 </header>
 
+<!-- KAYAN YAZI -->
 <div class="ticker">
   <div class="ticker-content" id="ticker"></div>
 </div>
 
-<input type="text" placeholder="Coin ara..." onkeyup="filterCoins(this.value)">
-
-<div class="coin-list" id="coins"></div>
+<input type="text" placeholder="Coin ara..." onkeyup="searchCoin(this.value)">
 
 <div id="tradingview_chart"></div>
+
+<!-- YORUM -->
+<div class="comment-box">
+  <h2>Yorumlar</h2>
+  <input id="commentInput" placeholder="Yorum yaz...">
+  <button onclick="addComment()">Gönder</button>
+  <div id="commentsList"></div>
+</div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
+let coins = [];
 let currentSymbol = "BINANCE:BTCUSDT";
-let allCoins = [];
 
-/* CHART */
-function loadChart() {
-  document.getElementById("tradingview_chart").innerHTML = "";
+// COIN ÇEK
+async function loadCoins(){
+  const res = await fetch("https://api.binance.com/api/v3/ticker/24hr");
+  coins = await res.json();
+
+  renderTicker();
+}
+
+// KAYAN YAZI
+function renderTicker(){
+  const ticker = document.getElementById("ticker");
+  ticker.innerHTML = coins.slice(0,30).map(c => {
+    const color = parseFloat(c.priceChangePercent) >= 0 ? "lime" : "red";
+    return `<span style="margin-right:40px;color:${color}">
+      ${c.symbol} $${parseFloat(c.lastPrice).toFixed(2)}
+    </span>`;
+  }).join("");
+}
+
+// ARAMA
+function searchCoin(val){
+  val = val.toUpperCase();
+  const coin = coins.find(c => c.symbol.includes(val));
+  if(coin){
+    currentSymbol = "BINANCE:"+coin.symbol;
+    loadChart();
+  }
+}
+
+// CHART
+function loadChart(){
+  document.getElementById("tradingview_chart").innerHTML="";
   new TradingView.widget({
-    width: "100%",
-    height: 400,
+    width:"100%",
+    height:500,
     symbol: currentSymbol,
-    theme: "dark",
-    container_id: "tradingview_chart"
+    theme:"dark",
+    container_id:"tradingview_chart"
   });
 }
 
-/* COINS */
-async function loadCoins() {
-  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
-  const data = await res.json();
-
-  allCoins = data;
-  renderCoins(data);
-}
-
-function renderCoins(coins) {
-  const container = document.getElementById("coins");
-  container.innerHTML = "";
-
-  coins.forEach(c => {
-    const change = c.price_change_percentage_24h;
-    const cls = change >= 0 ? "up" : "down";
-
-    const el = document.createElement("div");
-    el.className = "coin";
-
-    el.innerHTML = `
-      <img src="${c.image}">
-      <div>${c.symbol.toUpperCase()}</div>
-      <div class="price $${cls}">
-        $${c.current_price}
-      </div>
-    `;
-
-    el.onclick = () => {
-      currentSymbol = "BINANCE:" + c.symbol.toUpperCase() + "USDT";
-      loadChart();
-    };
-
-    container.appendChild(el);
-  });
-}
-
-/* SEARCH */
-function filterCoins(val) {
-  val = val.toLowerCase();
-  const filtered = allCoins.filter(c =>
-    c.symbol.toLowerCase().includes(val)
-  );
-  renderCoins(filtered);
-}
-
-/* TICKER */
-async function loadTicker() {
-  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
-  const data = await res.json();
-
-  let text = "";
-
-  data.forEach(c => {
-    const color = c.price_change_percentage_24h >= 0 ? "lime" : "red";
-
-    text += `
-      <span style="margin-right:30px;">
-        ${c.symbol.toUpperCase()} $${c.current_price}
-        <span style="color:${color}">
-          (${c.price_change_percentage_24h.toFixed(1)}%)
-        </span>
-      </span>
-    `;
-  });
-
-  document.getElementById("ticker").innerHTML = text.repeat(3);
-}
-
-/* START */
 loadCoins();
-loadTicker();
 loadChart();
+</script>
 
-setInterval(loadTicker, 30000);
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA2G8j5qx5z3NZTU86TcDXjAcD0aazwq8c",
+  authDomain: "coinora-ac7fb.firebaseapp.com",
+  projectId: "coinora-ac7fb",
+  storageBucket: "coinora-ac7fb.firebasestorage.app",
+  messagingSenderId: "346058891334",
+  appId: "1:346058891334:web:f36a7a175382fc0d36ea47"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.addComment = async function(){
+  const input = document.getElementById("commentInput");
+  if(!input.value) return;
+
+  await addDoc(collection(db,"comments"),{
+    text: input.value,
+    date: new Date()
+  });
+
+  input.value="";
+  loadComments();
+};
+
+async function loadComments(){
+  const list = document.getElementById("commentsList");
+  list.innerHTML="";
+
+  const q = query(collection(db,"comments"), orderBy("date","desc"));
+  const snapshot = await getDocs(q);
+
+  snapshot.forEach(doc=>{
+    const d = doc.data();
+    list.innerHTML += `<div style="padding:10px;border-bottom:1px solid #333">${d.text}</div>`;
+  });
+}
+
+loadComments();
 </script>
 
 </body>
