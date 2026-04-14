@@ -172,7 +172,10 @@ window.loadComments = async function(){
 const list=document.getElementById("commentsList");
 list.innerHTML="";
 
-const snap=await getDocs(collection(db,"comments"));
+import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const q = query(collection(db,"comments"), orderBy("likes","desc"));
+const snap = await getDocs(q);
 
 snap.forEach(docSnap=>{
 const d=docSnap.data();
