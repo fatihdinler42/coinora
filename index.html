@@ -39,7 +39,7 @@ header {
 .ticker-content {
   display: inline-block;
   white-space: nowrap;
-  animation: scroll 40s linear infinite;
+  animation: scroll 80s linear infinite;
   padding: 10px;
   font-weight: bold;
   color: gold;
@@ -50,7 +50,7 @@ header {
   100% { transform: translateX(-100%); }
 }
 
-/* COIN LIST */
+/* COINS */
 .coin-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -64,12 +64,10 @@ header {
   border-radius: 10px;
   text-align: center;
   cursor: pointer;
-  transition: 0.2s;
 }
 
 .coin:hover {
   background: #334155;
-  transform: scale(1.05);
 }
 
 input {
@@ -92,9 +90,7 @@ input {
 </header>
 
 <div class="ticker">
-  <div class="ticker-content" id="ticker">
-    BTC $74,500 (+1.2%) • ETH $3,800 (+0.8%) • SOL $180 (+2.5%) • XRP $0.62 • DOGE $0.15
-  </div>
+  <div class="ticker-content" id="ticker">Yükleniyor...</div>
 </div>
 
 <input type="text" placeholder="Coin ara..." onkeyup="filterCoins(this.value)">
@@ -112,7 +108,6 @@ let allCoins = [];
 /* CHART */
 function loadChart() {
   document.getElementById("tradingview_chart").innerHTML = "";
-
   new TradingView.widget({
     width: "100%",
     height: 500,
@@ -122,26 +117,17 @@ function loadChart() {
   });
 }
 
-/* COINS */
+/* COIN LIST */
 async function loadCoins() {
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1");
-    const data = await res.json();
+  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
+  const data = await res.json();
 
-    if (!data || data.length === 0) throw "boş";
+  allCoins = data;
 
-    allCoins = data;
-    renderCoins(data);
-  } catch {
-    document.getElementById("coins").innerHTML = "Veri alınamadı";
-  }
-}
-
-function renderCoins(coins) {
   const container = document.getElementById("coins");
   container.innerHTML = "";
 
-  coins.forEach(c => {
+  data.forEach(c => {
     const el = document.createElement("div");
     el.className = "coin";
 
@@ -166,16 +152,29 @@ function filterCoins(val) {
   const filtered = allCoins.filter(c =>
     c.symbol.toLowerCase().includes(val)
   );
-  renderCoins(filtered);
+  render(filtered);
 }
 
-/* TICKER (GARANTİ) */
+function render(coins) {
+  const container = document.getElementById("coins");
+  container.innerHTML = "";
+  coins.forEach(c => {
+    const el = document.createElement("div");
+    el.className = "coin";
+    el.innerHTML = `${c.symbol.toUpperCase()}<br>$${c.current_price}`;
+    el.onclick = () => {
+      currentSymbol = "BINANCE:" + c.symbol.toUpperCase() + "USDT";
+      loadChart();
+    };
+    container.appendChild(el);
+  });
+}
+
+/* TICKER (FULL + TEKRARLI) */
 async function loadTicker() {
   try {
-    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=50&page=1");
+    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100&page=1");
     const data = await res.json();
-
-    if (!data || data.length === 0) throw "boş";
 
     let text = "";
 
@@ -192,12 +191,12 @@ async function loadTicker() {
       `;
     });
 
-    document.getElementById("ticker").innerHTML = text;
+    // 💣 boşluk kalmaması için 3 kat
+    document.getElementById("ticker").innerHTML = text.repeat(3);
 
   } catch {
-    // 🔥 ASLA BOŞ KALMAZ
     document.getElementById("ticker").innerHTML =
-      "BTC $74,500 (+1.2%) • ETH $3,800 (+0.8%) • SOL $180 (+2.5%) • XRP $0.62 • DOGE $0.15 • ADA $0.45";
+      "BTC $74,500 • ETH $3,800 • SOL $180 • XRP $0.62 • DOGE $0.15".repeat(5);
   }
 }
 
