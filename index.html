@@ -6,29 +6,25 @@
 
 <style>
 body{margin:0;background:#020617;color:white;font-family:Arial}
-
-/* LOGO */
 header{text-align:center;padding:20px}
 .logo{width:160px;filter:drop-shadow(0 0 10px gold)}
 
-/* TICKER */
 .ticker{overflow:hidden;border-top:1px solid gold;border-bottom:1px solid gold}
 .ticker-track{display:flex;gap:40px;animation:scroll 30s linear infinite}
 @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
 .coin{display:flex;align-items:center;cursor:pointer;font-weight:bold}
 .coin img{width:22px;margin-right:8px}
 
-/* INPUT */
 input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;border:none;background:#1e293b;color:white}
 
-/* CHART */
 #tradingview_chart{height:500px}
 
-/* COMMENTS */
 .comment-box{max-width:600px;margin:40px auto}
 .comment{border-bottom:1px solid #333;padding:10px}
 .name{color:gold;font-weight:bold}
 .actions span{margin-right:10px;cursor:pointer}
+button{padding:10px;background:gold;border:none;border-radius:10px}
 </style>
 </head>
 
@@ -62,16 +58,23 @@ input{width:90%;margin:10px auto;display:block;padding:10px;border-radius:10px;b
 <script>
 let coins=[];
 let currentSymbol="BTCUSDT";
+window.currentSymbol="BTCUSDT";
 
 async function loadCoins(){
 const binance=await fetch("https://api.binance.com/api/v3/ticker/24hr").then(r=>r.json());
 const cg=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd").then(r=>r.json());
 
-coins=binance.slice(0,60).map(c=>{
+coins=binance.slice(0,50).map(c=>{
 const symbol=c.symbol.replace("USDT","");
 const found=cg.find(x=>x.symbol.toUpperCase()==symbol);
-return {symbol:c.symbol,price:c.lastPrice,change:c.priceChangePercent,icon:found?found.image:""};
+return {
+symbol:c.symbol,
+price:c.lastPrice,
+change:c.priceChangePercent,
+icon:found?found.image:""
+};
 });
+
 renderTicker();
 }
 
@@ -80,9 +83,12 @@ const ticker=document.getElementById("ticker");
 
 const html=coins.map(c=>{
 const color=parseFloat(c.change)>=0?"lime":"red";
-return `<div class="coin" onclick="selectCoin('${c.symbol}')">
+return `
+<div class="coin" onclick="selectCoin('${c.symbol}')">
 <img src="${c.icon}">
-<span style="color:${color}">${c.symbol} $${parseFloat(c.price).toFixed(2)}</span>
+<span style="color:${color}">
+${c.symbol} $${parseFloat(c.price).toFixed(2)}
+</span>
 </div>`;
 }).join("");
 
@@ -91,6 +97,7 @@ ticker.innerHTML=html+html;
 
 function selectCoin(symbol){
 currentSymbol=symbol;
+window.currentSymbol=symbol;
 loadChart();
 loadComments();
 document.getElementById("coinTitle").innerText=symbol+" Yorumlar";
@@ -135,12 +142,12 @@ window.addComment = async function(){
 const user=document.getElementById("username").value;
 const text=document.getElementById("commentInput").value;
 
-if(!user || !text) return;
+if(!text) return;
 
 await addDoc(collection(db,"comments"),{
-user:user,
+user:user || "Anonim",
 text:text,
-coin:window.currentSymbol,
+coin:window.currentSymbol || "BTCUSDT",
 likes:0,
 dislikes:0
 });
@@ -151,13 +158,13 @@ loadComments();
 
 window.likeComment = async function(id,likes){
 const ref=doc(db,"comments",id);
-await updateDoc(ref,{likes:likes+1});
+await updateDoc(ref,{likes:(likes||0)+1});
 loadComments();
 };
 
 window.dislikeComment = async function(id,dislikes){
 const ref=doc(db,"comments",id);
-await updateDoc(ref,{dislikes:dislikes+1});
+await updateDoc(ref,{dislikes:(dislikes||0)+1});
 loadComments();
 };
 
@@ -170,14 +177,14 @@ const snap=await getDocs(collection(db,"comments"));
 snap.forEach(docSnap=>{
 const d=docSnap.data();
 
-if(d.coin===window.currentSymbol){
+if((d.coin || "BTCUSDT")===window.currentSymbol){
 list.innerHTML+=`
 <div class="comment">
-<div class="name">${d.user}</div>
+<div class="name">${d.user || "Anonim"}</div>
 <div>${d.text}</div>
 <div class="actions">
-<span onclick="likeComment('${docSnap.id}',${d.likes})">👍 ${d.likes}</span>
-<span onclick="dislikeComment('${docSnap.id}',${d.dislikes})">👎 ${d.dislikes}</span>
+<span onclick="likeComment('${docSnap.id}',${d.likes})">👍 ${d.likes||0}</span>
+<span onclick="dislikeComment('${docSnap.id}',${d.dislikes})">👎 ${d.dislikes||0}</span>
 </div>
 </div>
 `;
