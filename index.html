@@ -172,6 +172,40 @@ window.loadComments = async function(){
 const list=document.getElementById("commentsList");
 list.innerHTML="";
 
+const snap=await getDocs(collection(db,"comments"));
+
+let arr=[];
+
+snap.forEach(docSnap=>{
+const d=docSnap.data();
+
+if((d.coin || "BTCUSDT")===window.currentSymbol){
+arr.push({
+id:docSnap.id,
+...d,
+likes:d.likes || 0,
+dislikes:d.dislikes || 0
+});
+}
+});
+
+// 🔥 BURASI ÖNEMLİ (JS sıralama)
+arr.sort((a,b)=>b.likes - a.likes);
+
+arr.forEach(d=>{
+list.innerHTML+=`
+<div class="comment">
+<div class="name">${d.user || "Anonim"}</div>
+<div>${d.text}</div>
+<div class="actions">
+<span onclick="likeComment('${d.id}',${d.likes})">👍 ${d.likes}</span>
+<span onclick="dislikeComment('${d.id}',${d.dislikes})">👎 ${d.dislikes}</span>
+</div>
+</div>
+`;
+});
+}
+
 import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 
 const q = query(collection(db,"comments"), orderBy("likes","desc"));
