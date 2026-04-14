@@ -136,7 +136,8 @@ ticker+=`<span style="color:${green?"lime":"red"}">${c.symbol} ${Number(c.price)
 
 coins+=`
 <div class="coin" onclick="changeCoin('${c.symbol}')">
-<img src="https://cryptoicons.org/api/icon/${c.symbol.slice(0,3).toLowerCase()}/32">
+<img src="https://assets.coincap.io/assets/icons/${c.symbol.slice(0,3).toLowerCase()}@2x.png"
+onerror="this.src='https://via.placeholder.com/20'">
 ${c.symbol}
 </div>`;
 });
@@ -229,9 +230,28 @@ arr.forEach(c=>{
 list.innerHTML+=`
 <div class="comment">
 <b>${c.user}</b><br>
-${c.text}<br>
-<span class="btn" onclick="likeComment('${c.id}',${c.likes||0})">👍 ${c.likes||0}</span>
-<span class="btn" onclick="dislikeComment('${c.id}',${c.dislikes||0})">👎 ${c.dislikes||0}</span>
+${c.text}<br><br>
+
+
+arr.forEach(c=>{
+list.innerHTML+=`
+<div class="comment">
+
+<b>${c.user}</b><br>
+${c.text}<br><br>
+
+<span class="btn" onclick="likeComment('${c.id}',${c.likes||0})">
+👍 ${c.likes||0}
+</span>
+
+<span class="btn" onclick="dislikeComment('${c.id}',${c.dislikes||0})">
+👎 ${c.dislikes||0}
+</span>
+
+</div>
+`;
+});
+
 </div>`;
 });
 }
