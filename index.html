@@ -13,7 +13,7 @@ body{background:#020b1c;color:white;font-family:Arial;margin:0}
 header{text-align:center;padding:20px}
 .logo{width:200px}
 
-/* KAYAN YAZI */
+/* TICKER */
 .ticker{
 overflow:hidden;
 white-space:nowrap;
@@ -23,7 +23,7 @@ padding:10px;
 }
 .ticker-inner{
 display:inline-block;
-animation:scroll 25s linear infinite;
+animation:scroll 40s linear infinite;
 }
 @keyframes scroll{
 0%{transform:translateX(100%)}
@@ -55,7 +55,14 @@ border:none;
 
 /* COMMENTS */
 .comment{border-bottom:1px solid #333;padding:10px}
-.btn{cursor:pointer;margin-right:10px}
+.btn{
+cursor:pointer;
+margin-right:10px;
+background:#111;
+padding:5px 10px;
+border-radius:5px;
+display:inline-block;
+}
 </style>
 </head>
 
@@ -87,7 +94,15 @@ border:none;
 
 // 🔥 FIREBASE (KENDİNİ KOY)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+getFirestore,
+collection,
+addDoc,
+getDocs,
+doc,
+updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "BURAYA",
@@ -100,50 +115,41 @@ const db = getFirestore(app);
 
 window.currentSymbol="BTCUSDT";
 
-// 🚀 COINS
+// 🚀 COINS + GERÇEK RENK
 async function loadCoins(){
 
-let data=[];
-
-try{
-const res=await fetch("https://api.binance.com/api/v3/ticker/price");
-data=await res.json();
-if(!data.length) throw "boş";
-}catch{
-
-const res=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd");
-const cg=await res.json();
-
-data=cg.map(c=>({
-symbol:c.symbol.toUpperCase()+"USDT",
-price:c.current_price
-}));
-}
+const res=await fetch("https://api.binance.com/api/v3/ticker/24hr");
+const data=await res.json();
 
 let ticker="";
 let coins="";
 
-data.slice(0,20).forEach(c=>{
+data.slice(0,80).forEach(c=>{
 
-const green=Math.random()>0.5;
+const price=parseFloat(c.lastPrice);
+const change=parseFloat(c.priceChangePercent);
+const green=change>=0;
 
 ticker+=`
 <span style="color:${green?"lime":"red"}">
-${c.symbol} ${Number(c.price).toFixed(2)}
+${c.symbol} ${price.toFixed(2)} (${change.toFixed(2)}%)
 </span>
 `;
 
 coins+=`
 <div class="coin" onclick="changeCoin('${c.symbol}')">
+
 <img src="https://assets.coincap.io/assets/icons/${c.symbol.slice(0,3).toLowerCase()}@2x.png"
 onerror="this.src='https://via.placeholder.com/20'">
+
 ${c.symbol}
 </div>
 `;
 });
 
+// 💣 ÇİFT YAZI → boşluk yok
 document.getElementById("ticker").innerHTML =
-'<div class="ticker-inner">'+ticker+'</div>';
+'<div class="ticker-inner">'+ticker+ticker+'</div>';
 
 document.getElementById("coinList").innerHTML=coins;
 }
@@ -166,7 +172,7 @@ loadChart(symbol);
 loadComments();
 }
 
-// 💬 YORUM EKLE
+// 💬 ADD COMMENT
 window.addComment=async function(){
 
 const user=document.getElementById("username").value;
@@ -222,6 +228,7 @@ arr.sort((a,b)=>b.likes-a.likes);
 arr.forEach(c=>{
 list.innerHTML+=`
 <div class="comment">
+
 <b>${c.user}</b><br>
 ${c.text}<br><br>
 
@@ -233,11 +240,12 @@ ${c.text}<br><br>
 👎 ${c.dislikes||0}
 </span>
 
-</div>`;
+</div>
+`;
 });
 }
 
-// INIT
+// 🚀 INIT
 loadCoins();
 loadChart("BTCUSDT");
 loadComments();
