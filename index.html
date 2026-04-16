@@ -2,253 +2,172 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>COINORA</title>
-
-<script src="https://s3.tradingview.com/tv.js"></script>
+<title>CoinOra ULTRA</title>
 
 <style>
-body{background:#020b1c;color:white;font-family:Arial;margin:0}
-
-/* LOGO */
-header{text-align:center;padding:20px}
-.logo{width:200px}
-
-/* TICKER */
-.ticker{
-overflow:hidden;
-white-space:nowrap;
-border-top:1px solid gold;
-border-bottom:1px solid gold;
-padding:10px;
-}
-.ticker-inner{
-display:inline-block;
-animation:scroll 40s linear infinite;
-}
-@keyframes scroll{
-0%{transform:translateX(100%)}
-100%{transform:translateX(-100%)}
+body {
+    background: linear-gradient(135deg,#020617,#0f172a);
+    color: white;
+    font-family: Arial;
+    text-align: center;
 }
 
-/* COINS */
-.coins{display:flex;overflow:auto;padding:10px}
-.coin{
-background:#0b1b3a;
-margin-right:10px;
-padding:10px;
-border-radius:10px;
-cursor:pointer;
-display:flex;
-align-items:center;
-gap:5px;
-}
-.coin img{width:20px}
-
-/* INPUT */
-input{
-width:90%;
-margin:10px;
-padding:10px;
-border-radius:10px;
-border:none;
+h1 {
+    font-size: 40px;
+    background: linear-gradient(90deg,#38bdf8,#22c55e,#a855f7);
+    -webkit-background-clip: text;
+    color: transparent;
 }
 
-/* COMMENTS */
-.comment{border-bottom:1px solid #333;padding:10px}
-.btn{
-cursor:pointer;
-margin-right:10px;
-background:#111;
-padding:5px 10px;
-border-radius:5px;
-display:inline-block;
+.ticker {
+    overflow:hidden;
+    white-space:nowrap;
+    animation:ticker 25s linear infinite;
+    background:#020617;
+    padding:10px;
 }
+
+@keyframes ticker {
+    0% {transform:translateX(100%)}
+    100% {transform:translateX(-100%)}
+}
+
+#coinList {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+
+.coin {
+    background:#1e293b;
+    margin:15px;
+    padding:20px;
+    border-radius:15px;
+    width:260px;
+}
+
+.up {color:#22c55e; animation:blink 1s infinite;}
+.down {color:#ef4444; animation:blink 1s infinite;}
+
+@keyframes blink {
+    50%{opacity:0.4;}
+}
+
+button {
+    margin:5px;
+    padding:5px 10px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.like {background:#22c55e;}
+.dislike {background:#ef4444;}
 </style>
+
 </head>
 
 <body>
 
-<header>
-<img src="logo.png" class="logo">
-</header>
+<h1>🚀 CoinOra ULTRA</h1>
 
-<div class="ticker" id="ticker">yükleniyor...</div>
+<div class="ticker" id="ticker"></div>
+<div id="coinList"></div>
 
-<div class="coins" id="coinList"></div>
+<script>
 
-<input placeholder="Coin ara...">
+let likes={},dislikes={},comments={},favorites={};
 
-<div id="chart" style="height:500px"></div>
+async function getCoins(){
+    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd");
+    const data = await res.json();
 
-<div style="padding:20px">
-<h2 id="title">BTCUSDT Yorumlar</h2>
+    let ticker="";
+    let html="";
 
-<input id="username" placeholder="İsmin">
-<input id="commentInput" placeholder="Yorum yaz">
-<button onclick="addComment()">Gönder</button>
+    data.slice(0,12).forEach(c=>{
 
-<div id="commentsList"></div>
-</div>
+        let change = c.price_change_percentage_24h?.toFixed(2) || 0;
+        let cls = change >= 0 ? "up" : "down";
+        let icon = change >= 0 ? "📈" : "📉";
 
-<script type="module">
+        if(!likes[c.id]) likes[c.id]=0;
+        if(!dislikes[c.id]) dislikes[c.id]=0;
+        if(!comments[c.id]) comments[c.id]=[];
 
-// 🔥 FIREBASE (KENDİNİ KOY)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        ticker += `${c.symbol.toUpperCase()} ${c.current_price}$ (${change}%) 🔥 — `;
 
-import {
-getFirestore,
-collection,
-addDoc,
-getDocs,
-doc,
-updateDoc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        html+=`
+        <div class="coin">
+            <h2>${favorites[c.id]?"⭐":""} ${c.name}</h2>
 
-const firebaseConfig = {
-apiKey: "BURAYA",
-authDomain: "BURAYA",
-projectId: "BURAYA",
-};
+            <img src="${c.image}" width="40">
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+            <p>$${c.current_price}</p>
+            <p class="${cls}">${icon} ${change}%</p>
 
-window.currentSymbol="BTCUSDT";
+            <div style="font-size:24px; margin:10px;">
+                <span onclick='openChart("${c.symbol}")' style="cursor:pointer">📊</span>
+                <span onclick='openNews("${c.name}")' style="cursor:pointer">📰</span>
+            </div>
 
-// 🚀 COINS + GERÇEK RENK
-async function loadCoins(){
+            <button onclick="toggleFav('${c.id}')">⭐ Favori</button>
+            <button class="like" onclick="like('${c.id}')">👍 ${likes[c.id]}</button>
+            <button class="dislike" onclick="dislike('${c.id}')">👎 ${dislikes[c.id]}</button>
 
-const res=await fetch("https://api.binance.com/api/v3/ticker/24hr");
-const data=await res.json();
+            <div>
+                <input placeholder="Yorum..." id="i-${c.id}">
+                <button onclick="addComment('${c.id}')">Gönder</button>
+            </div>
 
-let ticker="";
-let coins="";
+            <div>
+                ${comments[c.id].map(x=>`<p>💬 ${x}</p>`).join("")}
+            </div>
+        </div>
+        `;
+    });
 
-data.slice(0,80).forEach(c=>{
-
-const price=parseFloat(c.lastPrice);
-const change=parseFloat(c.priceChangePercent);
-const green=change>=0;
-
-ticker+=`
-<span style="color:${green?"lime":"red"}">
-${c.symbol} ${price.toFixed(2)} (${change.toFixed(2)}%)
-</span>
-`;
-
-coins+=`
-<div class="coin" onclick="changeCoin('${c.symbol}')">
-
-<img src="https://assets.coincap.io/assets/icons/${c.symbol.slice(0,3).toLowerCase()}@2x.png"
-onerror="this.src='https://via.placeholder.com/20'">
-
-${c.symbol}
-</div>
-`;
-});
-
-// 💣 ÇİFT YAZI → boşluk yok
-document.getElementById("ticker").innerHTML =
-'<div class="ticker-inner">'+ticker+ticker+'</div>';
-
-document.getElementById("coinList").innerHTML=coins;
+    document.getElementById("ticker").innerText=ticker;
+    document.getElementById("coinList").innerHTML=html;
 }
 
-// 📊 CHART
-function loadChart(symbol){
-new TradingView.widget({
-container_id:"chart",
-symbol:"BINANCE:"+symbol,
-interval:"1",
-theme:"dark"
-});
+function like(c){likes[c]++;getCoins();}
+function dislike(c){dislikes[c]++;getCoins();}
+function toggleFav(c){favorites[c]=!favorites[c];getCoins();}
+
+function addComment(c){
+    let val=document.getElementById("i-"+c).value;
+    if(val){
+        comments[c].push(val);
+        getCoins();
+    }
 }
 
-// 🔄 COIN
-window.changeCoin=function(symbol){
-window.currentSymbol=symbol;
-document.getElementById("title").innerText=symbol+" Yorumlar";
-loadChart(symbol);
-loadComments();
+function openChart(symbol){
+    document.body.innerHTML = `
+    <h1>📊 ${symbol.toUpperCase()} Grafik</h1>
+    <iframe src="https://www.tradingview.com/widgetembed/?symbol=BINANCE:${symbol.toUpperCase()}USDT&theme=dark"
+    width="100%" height="500"></iframe>
+    <br><br>
+    <button onclick="location.reload()">⬅️ Geri</button>
+    `;
 }
 
-// 💬 ADD COMMENT
-window.addComment=async function(){
-
-const user=document.getElementById("username").value;
-const text=document.getElementById("commentInput").value;
-
-if(!text) return;
-
-await addDoc(collection(db,"comments"),{
-user:user||"Anonim",
-text:text,
-coin:window.currentSymbol,
-likes:0,
-dislikes:0
-});
-
-document.getElementById("commentInput").value="";
-loadComments();
+function openNews(name){
+    document.body.innerHTML = `
+    <h1>📰 ${name} Haberleri</h1>
+    <div style="padding:20px">
+        <p>🔥 ${name} yatırımcı ilgisi artıyor</p>
+        <p>📈 Analistler yükseliş bekliyor</p>
+        <p>⚡ Piyasada hareketlilik var</p>
+    </div>
+    <br>
+    <button onclick="location.reload()">⬅️ Geri</button>
+    `;
 }
 
-// 👍 LIKE
-window.likeComment=async function(id,likes){
-await updateDoc(doc(db,"comments",id),{likes:likes+1});
-loadComments();
-}
-
-// 👎 DISLIKE
-window.dislikeComment=async function(id,dislikes){
-await updateDoc(doc(db,"comments",id),{dislikes:dislikes+1});
-loadComments();
-}
-
-// 📥 LOAD COMMENTS
-async function loadComments(){
-
-const list=document.getElementById("commentsList");
-list.innerHTML="";
-
-const snap=await getDocs(collection(db,"comments"));
-
-let arr=[];
-
-snap.forEach(d=>{
-const data=d.data();
-
-if((data.coin||"BTCUSDT")==window.currentSymbol){
-arr.push({id:d.id,...data});
-}
-});
-
-// 🔥 LIKE SIRALAMA
-arr.sort((a,b)=>b.likes-a.likes);
-
-arr.forEach(c=>{
-list.innerHTML+=`
-<div class="comment">
-
-<b>${c.user}</b><br>
-${c.text}<br><br>
-
-<span class="btn" onclick="likeComment('${c.id}',${c.likes||0})">
-👍 ${c.likes||0}
-</span>
-
-<span class="btn" onclick="dislikeComment('${c.id}',${c.dislikes||0})">
-👎 ${c.dislikes||0}
-</span>
-
-</div>
-`;
-});
-}
-
-// 🚀 INIT
-loadCoins();
-loadChart("BTCUSDT");
-loadComments();
+setInterval(getCoins,10000);
+getCoins();
 
 </script>
 
