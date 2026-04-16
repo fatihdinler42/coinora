@@ -2,34 +2,14 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>CoinOra ULTRA</title>
+<title>CoinOra FIREBASE</title>
 
 <style>
 body {
     background: linear-gradient(135deg,#020617,#0f172a);
-    color: white;
-    font-family: Arial;
-    text-align: center;
-}
-
-h1 {
-    font-size: 40px;
-    background: linear-gradient(90deg,#38bdf8,#22c55e,#a855f7);
-    -webkit-background-clip: text;
-    color: transparent;
-}
-
-.ticker {
-    overflow:hidden;
-    white-space:nowrap;
-    animation:ticker 25s linear infinite;
-    background:#020617;
-    padding:10px;
-}
-
-@keyframes ticker {
-    0% {transform:translateX(100%)}
-    100% {transform:translateX(-100%)}
+    color:white;
+    font-family:Arial;
+    text-align:center;
 }
 
 #coinList {
@@ -46,127 +26,70 @@ h1 {
     width:260px;
 }
 
-.up {color:#22c55e; animation:blink 1s infinite;}
-.down {color:#ef4444; animation:blink 1s infinite;}
-
-@keyframes blink {
-    50%{opacity:0.4;}
-}
-
-button {
-    margin:5px;
-    padding:5px 10px;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-.like {background:#22c55e;}
-.dislike {background:#ef4444;}
+.up {color:#22c55e;}
+.down {color:#ef4444;}
 </style>
 
 </head>
 
 <body>
 
-<h1>🚀 CoinOra ULTRA</h1>
+<h1>🚀 CoinOra FIREBASE</h1>
 
-<div class="ticker" id="ticker"></div>
 <div id="coinList"></div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <script>
 
-let likes={},dislikes={},comments={},favorites={};
+const firebaseConfig = {
+  apiKey: "BURAYA_API_KEY",
+  authDomain: "xxx.firebaseapp.com",
+  projectId: "xxx",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 async function getCoins(){
     const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd");
     const data = await res.json();
 
-    let ticker="";
     let html="";
 
-    data.slice(0,12).forEach(c=>{
-
+    data.slice(0,6).forEach(c=>{
         let change = c.price_change_percentage_24h?.toFixed(2) || 0;
         let cls = change >= 0 ? "up" : "down";
-        let icon = change >= 0 ? "📈" : "📉";
-
-        if(!likes[c.id]) likes[c.id]=0;
-        if(!dislikes[c.id]) dislikes[c.id]=0;
-        if(!comments[c.id]) comments[c.id]=[];
-
-        ticker += `${c.symbol.toUpperCase()} ${c.current_price}$ (${change}%) 🔥 — `;
 
         html+=`
         <div class="coin">
-            <h2>${favorites[c.id]?"⭐":""} ${c.name}</h2>
-
-            <img src="${c.image}" width="40">
-
+            <h2>${c.name}</h2>
             <p>$${c.current_price}</p>
-            <p class="${cls}">${icon} ${change}%</p>
+            <p class="${cls}">${change}%</p>
 
-            <div style="font-size:24px; margin:10px;">
-                <span onclick='openChart("${c.symbol}")' style="cursor:pointer">📊</span>
-                <span onclick='openNews("${c.name}")' style="cursor:pointer">📰</span>
-            </div>
-
-            <button onclick="toggleFav('${c.id}')">⭐ Favori</button>
-            <button class="like" onclick="like('${c.id}')">👍 ${likes[c.id]}</button>
-            <button class="dislike" onclick="dislike('${c.id}')">👎 ${dislikes[c.id]}</button>
-
-            <div>
-                <input placeholder="Yorum..." id="i-${c.id}">
-                <button onclick="addComment('${c.id}')">Gönder</button>
-            </div>
-
-            <div>
-                ${comments[c.id].map(x=>`<p>💬 ${x}</p>`).join("")}
-            </div>
+            <button onclick="addComment('${c.id}')">💬 Yorum Ekle</button>
         </div>
         `;
     });
 
-    document.getElementById("ticker").innerText=ticker;
     document.getElementById("coinList").innerHTML=html;
 }
 
-function like(c){likes[c]++;getCoins();}
-function dislike(c){dislikes[c]++;getCoins();}
-function toggleFav(c){favorites[c]=!favorites[c];getCoins();}
+async function addComment(coin){
+    let text = prompt("Yorum yaz:");
+    if(!text) return;
 
-function addComment(c){
-    let val=document.getElementById("i-"+c).value;
-    if(val){
-        comments[c].push(val);
-        getCoins();
-    }
+    await db.collection("comments").add({
+        coin: coin,
+        text: text,
+        time: Date.now()
+    });
+
+    alert("Kaydedildi!");
 }
 
-function openChart(symbol){
-    document.body.innerHTML = `
-    <h1>📊 ${symbol.toUpperCase()} Grafik</h1>
-    <iframe src="https://www.tradingview.com/widgetembed/?symbol=BINANCE:${symbol.toUpperCase()}USDT&theme=dark"
-    width="100%" height="500"></iframe>
-    <br><br>
-    <button onclick="location.reload()">⬅️ Geri</button>
-    `;
-}
-
-function openNews(name){
-    document.body.innerHTML = `
-    <h1>📰 ${name} Haberleri</h1>
-    <div style="padding:20px">
-        <p>🔥 ${name} yatırımcı ilgisi artıyor</p>
-        <p>📈 Analistler yükseliş bekliyor</p>
-        <p>⚡ Piyasada hareketlilik var</p>
-    </div>
-    <br>
-    <button onclick="location.reload()">⬅️ Geri</button>
-    `;
-}
-
-setInterval(getCoins,10000);
 getCoins();
 
 </script>
